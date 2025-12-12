@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { addData } from '../Helper/firebaseHelper';
+import firestore from '@react-native-firebase/firestore'; 
+// Assuming you have an updateData function in your firebaseHelper
+// import { updateData } from '../Helper/firebaseHelper'; 
+
+// --- DUMMY FUNCTION for updateData ---
+// Replace this with your actual helper function if you don't use the direct firestore.doc().update() method
+const updateData = async (collectionName, docId, data) => {
+    return firestore().collection(collectionName).doc(docId).update(data);
+};
+// ------------------------------------
+
 
 const COLORS = {
   PrimaryAccent: '#48C2B3',
@@ -30,50 +40,92 @@ const PRIORITY_OPTIONS = [
   { label: 'Low', value: 'Low', color: COLORS.PrimaryAccent, icon: 'leaf' },
 ];
 
-const AddTaskScreen = ({ navigation }) => {
+const EditTaskScreen = ({ navigation, route }) => {
+  const { taskId } = route.params;
+
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [priority, setPriority] = useState(PRIORITY_OPTIONS[2].value);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const handleSaveTask = async () => {
+  // --- EFFECT to FETCH existing task data ---
+  useEffect(() => {
+    const fetchTask = async () => {
+      try {
+        const taskRef = firestore().collection('task').doc(taskId);
+        const doc = await taskRef.get();
+
+        if (doc.exists) {
+          const taskData = doc.data();
+          setTitle(taskData.title || '');
+          setDetail(taskData.description || '');
+          // Ensure priority is capitalized to match option labels
+          setPriority(taskData.priority ? taskData.priority.charAt(0).toUpperCase() + taskData.priority.slice(1) : PRIORITY_OPTIONS[2].value);
+        } else {
+          alert('Task not found!');
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error('Error fetching task:', error);
+        alert('Failed to load task data.');
+        navigation.goBack();
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [taskId, navigation]);
+
+  const handleUpdateTask = async () => {
     if (!title.trim()) {
       alert('Task title cannot be empty!');
       return;
     }
     setLoading(true);
-    const newTask = {
+
+    const updatedTask = {
       title: title.trim(),
       description: detail.trim(),
-      priority: priority.toLowerCase(),
-      createdAt: new Date().toISOString(),
+      // Priority is stored lowercase in Firestore
+      priority: priority.toLowerCase(), 
+      updatedAt: new Date().toISOString(),
     };
+
     try {
-      await addData('task', newTask);
-      alert('Task saved successfully!');
-      setTitle('');
-      setDetail('');
-      setPriority(PRIORITY_OPTIONS[2].value);
+      // Use the taskId and updatedTask object for the update operation
+      await updateData('task', taskId, updatedTask); 
+      alert('Task updated successfully!');
       navigation.goBack();
     } catch (error) {
-      console.error('Error saving task:', error);
-      alert('Failed to save task. Please try again.');
+      console.error('Error updating task:', error);
+      alert('Failed to update task. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (initialLoading) {
+    return (
+        <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.PrimaryAccent} />
+            <Text style={styles.loadingText}>Loading task for editing...</Text>
+        </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
-        {/* Clean Header */}
+        {/* Clean Header (Updated Title) */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={28} color={COLORS.PrimaryAccent} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Create New Task</Text>
+            <Text style={styles.headerTitle}>Edit Task</Text>
           </View>
         </View>
 
@@ -130,14 +182,14 @@ const AddTaskScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveTask} disabled={loading}>
+        {/* Update Button (Updated Text) */}
+        <TouchableOpacity style={styles.saveButton} onPress={handleUpdateTask} disabled={loading}>
           {loading ? (
             <ActivityIndicator size="small" color={COLORS.White} />
           ) : (
             <>
-              <MaterialCommunityIcons name="check-circle-outline" size={24} color={COLORS.White} style={{ marginRight: 8 }} />
-              <Text style={styles.saveButtonText}>Save Task</Text>
+              <MaterialCommunityIcons name="content-save-outline" size={24} color={COLORS.White} style={{ marginRight: 8 }} />
+              <Text style={styles.saveButtonText}>Update Task</Text>
             </>
           )}
         </TouchableOpacity>
@@ -160,9 +212,22 @@ const styles = StyleSheet.create({
   backButton: { marginRight: 10 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
-    fontSize: 28,   // Bigger and more prominent
+    fontSize: 28, 
     fontWeight: '900',
     color: COLORS.MainText,
+  },
+  
+  // Initial Loading state
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.Background,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.SubtleText,
   },
 
   // Card Input
@@ -202,7 +267,7 @@ const styles = StyleSheet.create({
   },
   priorityText: { marginLeft: 6, fontSize: 14, fontWeight: '700' },
 
-  // Save Button
+  // Save Button (Used for Update)
   saveButton: {
     marginTop: 20,
     borderRadius: 12,
@@ -220,4 +285,4 @@ const styles = StyleSheet.create({
   saveButtonText: { color: COLORS.White, fontSize: 18, fontWeight: '900' },
 });
 
-export default AddTaskScreen;
+export default EditTaskScreen;

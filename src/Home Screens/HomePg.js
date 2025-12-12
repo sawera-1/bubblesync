@@ -1,274 +1,572 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Platform,
-  Image,
+  KeyboardAvoidingView,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import firestore from '@react-native-firebase/firestore';
+import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context'; 
 
-// 🎨 Color Palette (Consistent with previous screens)
+
+// ----------------------------------------------------------------------
+// 🎨 COLOR PALETTE & HELPERS (Unchanged)
+// ----------------------------------------------------------------------
 const COLORS = {
-  PrimaryAccent: '#48C2B3', // Teal/Aqua Green (used for active buttons/icons)
-  SecondaryAccent: '#F56F64', // Coral/Red-Orange (used for Voice Recording/High Priority)
-  Background: '#fefefe', // Light background
+  PrimaryAccent: '#48C2B3',
+  SecondaryAccent: '#F56F64',
+  Background: '#fefefe',
   MainText: '#1E252D',
   SubtleText: '#666666',
   White: '#FFFFFF',
-  NotePhysics: '#81c784', // Light Green for Physics note
-  NotePersonal: '#ffcc80', // Light Orange for Personal note
-  NoteMisc: '#ff8a65', // Reddish-Orange for Misc note
+  NotePhysics: '#81c784', 
+  NotePersonal: '#ffcc80',
+  NoteMisc: '#ff8a65',
 };
 
-// --- Dummy Data (Kept for component demonstration) ---
-const dummyTasks = [
-  { id: 1, title: 'Review Physics Qs', priority: 'Low', icon: 'flash' },
-  { id: 2, title: 'Finish Essay Draft', priority: 'Medium', icon: 'pencil-box-multiple' },
-  { id: 3, title: 'Prepare Presentation', priority: 'High Priority', icon: 'fire' },
-];
-// NOTE: BUBBLE_LOGO_URI is kept but no longer used in the header
-const BUBBLE_LOGO_URI = require('../../images/logo.png'); 
+const getPriorityDetails = (priority) => {
+  const p = priority ? priority.toLowerCase() : 'low';
+  switch (p) {
+    case 'high':
+      return { icon: 'fire', color: COLORS.SecondaryAccent, borderColor: COLORS.SecondaryAccent };
+    case 'medium':
+    case 'low':
+    default:
+      return { icon: 'flash', color: COLORS.SubtleText, borderColor: COLORS.NotePhysics };
+  }
+};
 
-const dummyNotes = [
-  { id: 1, title: 'Physics', text: 'Quantum cheat sheet... #0303', color: COLORS.NotePhysics },
-  { id: 2, title: 'Personal', text: 'Transcribed list... #E0502', color: COLORS.NotePersonal },
-  { id: 3, title: 'Misc', text: 'Grocery List: milk, eggs, bread... #AD32', color: COLORS.NoteMisc },
-];
+const getNoteColor = (index) => {
+  const colors = [COLORS.NotePhysics, COLORS.NotePersonal, COLORS.NoteMisc];
+  return colors[index % colors.length];
+};
 
-// --- Sub-Components (Unchanged) ---
-const TaskItem = ({ task }) => (
-  <View style={taskStyles.taskCard}>
-    <View style={taskStyles.taskContent}>
-      <Text style={taskStyles.taskTitle}>
-        {task.title} <MaterialCommunityIcons name={task.icon} size={14} color={task.icon === 'fire' ? COLORS.SecondaryAccent : COLORS.SubtleText} />
-      </Text>
-      <Text style={taskStyles.taskDetail}>
-        {task.priority} | Due: 18:56
-      </Text>
-    </View>
-    <View style={taskStyles.taskActions}>
-      <TouchableOpacity style={taskStyles.actionButton} onPress={() => console.log('Edit Task:', task.id)}>
-        <MaterialCommunityIcons name="pencil-outline" size={20} color={COLORS.SubtleText} />
+
+// ----------------------------------------------------------------------
+// 🧩 SUB-COMPONENTS (NoteItem updated to include onView)
+// ----------------------------------------------------------------------
+
+const TaskItem = ({ task, onEdit, onComplete, onView }) => {
+  const { icon, color: iconColor, borderColor } = getPriorityDetails(task.priority);
+  const isDone = task.completed === true;
+  const cardStyle = isDone ? taskStyles.taskCardDone : taskStyles.taskCard;
+  const titleStyle = isDone ? taskStyles.taskTitleDone : taskStyles.taskTitle;
+  const detailStyle = isDone ? taskStyles.taskDetailDone : taskStyles.taskDetail;
+  const completeIcon = isDone ? 'check-circle' : 'circle-outline';
+  const completeColor = isDone ? COLORS.NotePhysics : COLORS.PrimaryAccent;
+  const cardBorderColor = isDone ? COLORS.NotePhysics : borderColor;
+
+  return (
+    <View style={[cardStyle, { borderLeftColor: cardBorderColor }]}>
+      <TouchableOpacity 
+        style={taskStyles.taskContent}
+        onPress={() => onView(task.id)}
+      >
+        <Text style={titleStyle} numberOfLines={1}>
+          {task.title} <MaterialCommunityIcons 
+            name={icon} 
+            size={14} 
+            color={isDone ? COLORS.SubtleText : iconColor} 
+          />
+        </Text>
+        <Text style={detailStyle}>{task.priority || 'N/A'} | Due: 18:56</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={taskStyles.actionButton} onPress={() => console.log('Complete Task:', task.id)}>
-        <MaterialCommunityIcons name="check-circle" size={28} color={COLORS.PrimaryAccent} />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const NoteItem = ({ note }) => (
-  <View style={[noteStyles.noteCard, { backgroundColor: note.color }]}>
-    <Text style={noteStyles.noteTitle}>{note.title}</Text>
-    <Text style={noteStyles.noteText}>{note.text}</Text>
-    <View style={noteStyles.noteIcons}>
-      <MaterialCommunityIcons name="play-circle-outline" size={24} color={COLORS.White} />
-      <MaterialCommunityIcons name="star-outline" size={20} color={COLORS.White} />
-    </View>
-  </View>
-);
-
-
-// --- Main Screen ---
-
-const HomeScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('tasks');
-
-  // --- Task List View ---
-  const renderTaskView = () => (
-    <View style={styles.contentView}>
-      {/* Filter Tabs */}
-      <View style={taskStyles.filterContainer}>
+      
+      <View style={taskStyles.taskActions}>
         <TouchableOpacity 
-          style={[taskStyles.filterButton, { backgroundColor: COLORS.SecondaryAccent }]}
-          onPress={() => { /* Apply All filter */ }}
+          style={taskStyles.actionButton} 
+          onPress={() => onEdit(task.id)}
         >
-          <Text style={taskStyles.filterTextActive}>High</Text>
+          <MaterialCommunityIcons name="pencil-outline" size={20} color={COLORS.SubtleText} />
         </TouchableOpacity>
-        <TouchableOpacity style={taskStyles.filterButton}>
-          <Text style={taskStyles.filterText}>Medium</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={taskStyles.filterButton}>
-          <Text style={taskStyles.filterText}>Low</Text>
+        <TouchableOpacity 
+          style={taskStyles.actionButton} 
+          onPress={() => onComplete(task.id, isDone)} 
+        >
+          <MaterialCommunityIcons name={completeIcon} size={28} color={completeColor} />
         </TouchableOpacity>
       </View>
+    </View>
+  );
+};
 
-      {/* Task List */}
-      {dummyTasks.map(task => (
-        <TaskItem key={task.id} task={task} />
-      ))}
+// --- MODIFIED: Added onView prop to NoteItem ---
+const NoteItem = ({ note, onView }) => (
+  // Use the onView prop here to navigate when the card is pressed
+  <TouchableOpacity 
+    style={[noteStyles.noteCard, { backgroundColor: note.color }]}
+    onPress={() => onView(note.id)} // View/Navigate to detail screen on press
+  >
+    <Text style={noteStyles.noteTitle}>{note.title}</Text>
+    <Text style={noteStyles.noteText} numberOfLines={3}>{note.text}</Text>
+    <View style={noteStyles.noteIcons}>
+      {note.audioUrl && <MaterialCommunityIcons name="play-circle-outline" size={24} color={COLORS.White} />}
+      <MaterialCommunityIcons name="star-outline" size={20} color={COLORS.White} />
+    </View>
+  </TouchableOpacity>
+);
 
-      {/* Centered Add Task Button (FAB) */}
-      <TouchableOpacity style={taskStyles.centeredFab} onPress={() => navigation.navigate('AddTask')}>
+
+// ----------------------------------------------------------------------
+// 🏠 MAIN SCREEN COMPONENT CONTENT
+// ----------------------------------------------------------------------
+const HomeScreenContent = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  
+  // --- STATE DECLARATIONS & HANDLERS (Unchanged) ---
+  const [activeTab, setActiveTab] = useState('tasks');
+  const [tasks, setTasks] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [taskFilter, setTaskFilter] = useState('all'); 
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
+
+  const handleEditTask = (taskId) => { navigation.navigate('EditTask', { taskId }); };
+  const handleViewTask = (taskId) => { navigation.navigate('ViewTask', { taskId }); };
+  const handleCompleteTask = async (taskId, isCurrentlyDone) => {
+    try {
+      await firestore().collection('task').doc(taskId).update({ 
+        completed: !isCurrentlyDone,
+        completedAt: !isCurrentlyDone ? firestore.FieldValue.serverTimestamp() : null,
+      });
+    } catch (error) {
+      console.error("Error toggling task completion:", error);
+    }
+  };
+  
+  // --- HANDLER FOR NOTE VIEWING ---
+  const handleViewNote = (noteId) => {
+      // Navigate to the View/Edit Note screen
+      navigation.navigate('ViewNote', { noteId });
+  };
+
+
+  // ... Firestore Listeners (unchanged) ...
+  useEffect(() => {
+    const unsubscribeTasks = firestore()
+      .collection('task')
+      .orderBy('createdAt', 'desc') 
+      .onSnapshot(snapshot => {
+        const taskList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setTasks(taskList);
+        setIsLoading(false);
+      }, error => console.error('Tasks snapshot error:', error));
+
+    const unsubscribeNotes = firestore()
+      .collection('notes')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        const noteList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNotes(noteList);
+        setIsLoading(false); 
+      }, error => console.error('Notes snapshot error:', error));
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeNotes();
+    };
+  }, []);
+
+  // ... Filtered tasks and searched notes logic (unchanged) ...
+  const filteredTasks = useMemo(() => {
+    const filterLower = taskFilter.toLowerCase();
+    const tasksByCompletion = tasks.filter(task => {
+        const isCompleted = task.completed === true;
+        if (filterLower === 'done') { return isCompleted; } 
+        if (filterLower !== 'all') { return !isCompleted; }
+        return true; 
+    });
+    if (filterLower === 'all' || filterLower === 'done') { return tasksByCompletion; } 
+    return tasksByCompletion.filter(task => task.priority && task.priority.toLowerCase() === filterLower);
+  }, [tasks, taskFilter]);
+
+  const searchedNotes = useMemo(() => {
+    if (!noteSearchQuery.trim()) return notes;
+    const query = noteSearchQuery.trim().toLowerCase();
+    return notes.filter(note => {
+      const titleMatch = note.title && note.title.toLowerCase().includes(query);
+      const bodyMatch = note.body && note.body.toLowerCase().includes(query);
+      return titleMatch || bodyMatch;
+    });
+  }, [notes, noteSearchQuery]);
+
+
+  // --- FAB Position Calculation (Unchanged) ---
+  const fabBottomPosition = Math.max(20, insets.bottom + 20); 
+  const scrollPaddingBottom = fabBottomPosition + 60;
+
+  // --- Render Task View (Unchanged) ---
+  const renderTaskView = () => (
+    <View style={styles.contentView}>
+      <View style={taskStyles.filterContainer}>
+        {['All', 'High', 'Medium', 'Low', 'Done'].map((priority) => { 
+          const filterKey = priority.toLowerCase();
+          let activeColor = COLORS.PrimaryAccent;
+          if (filterKey === 'high') activeColor = COLORS.SecondaryAccent;
+          if (filterKey === 'done') activeColor = COLORS.NotePhysics;
+
+          const isSelected = taskFilter === filterKey;
+          
+          return (
+            <TouchableOpacity 
+              key={priority}
+              style={[taskStyles.filterButton, isSelected && { backgroundColor: activeColor }]}
+              onPress={() => setTaskFilter(filterKey)}
+            >
+              <Text style={isSelected ? taskStyles.filterTextActive : taskStyles.filterText}>
+                {priority}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        style={styles.scrollViewBase}
+        contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
+      >
+        {isLoading ? (
+          <Text style={styles.loadingText}>Loading tasks...</Text>
+        ) : filteredTasks.length === 0 ? (
+          <Text style={styles.noDataText}>
+            {taskFilter === 'all' ? 'No tasks found. Add a new task!' : taskFilter === 'done' ? 'No tasks marked as done.' : `No ${taskFilter} priority tasks found.`}
+          </Text>
+        ) : (
+          filteredTasks.map(task => (
+            <TaskItem 
+              key={task.id} 
+              task={task} 
+              onEdit={handleEditTask}
+              onComplete={handleCompleteTask}
+              onView={handleViewTask}
+            />
+          ))
+        )}
+      </ScrollView>
+
+      <TouchableOpacity 
+        style={[taskStyles.fabBase, { bottom: fabBottomPosition }]} 
+        onPress={() => navigation.navigate('AddTask')}
+      >
         <MaterialCommunityIcons name="plus" size={30} color={COLORS.White} />
       </TouchableOpacity>
     </View>
   );
 
-  // --- Voice Notes View ---
+  
+  // --- Render Notes View (Updated to pass handleViewNote) ---
   const renderNotesView = () => (
     <View style={styles.contentView}>
-       {/* Search Bar & Filter */}
       <View style={noteStyles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={24} color={COLORS.SubtleText} />
-        <TextInput
-          style={noteStyles.searchInput}
-          placeholder="Search notes..."
-          placeholderTextColor={COLORS.SubtleText}
+        <TextInput 
+          style={noteStyles.searchInput} 
+          placeholder="Search notes by title or body..." 
+          placeholderTextColor={COLORS.SubtleText} 
+          value={noteSearchQuery}
+          onChangeText={setNoteSearchQuery}
         />
         <TouchableOpacity>
           <MaterialCommunityIcons name="filter-variant" size={28} color={COLORS.PrimaryAccent} />
         </TouchableOpacity>
       </View>
 
-      {/* Notes Grid */}
-      <View style={noteStyles.notesGrid}>
-        {dummyNotes.map(note => (
-          <NoteItem key={note.id} note={note} />
-        ))}
-      </View>
-
-      {/* Voice Record Button (Large Red) */}
-      <View style={noteStyles.voiceButtonContainer}>
-        <TouchableOpacity style={noteStyles.voiceButton} onPress={() => navigation.navigate('AddVoiceNotes')}>
-          <View style={noteStyles.voiceButtonInner}>
-             <MaterialCommunityIcons name="microphone-variant" size={40} color={COLORS.White} />
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        style={styles.scrollViewBase}
+        contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
+      >
+        {isLoading ? (
+          <Text style={styles.loadingText}>Loading notes...</Text>
+        ) : searchedNotes.length === 0 ? (
+          <Text style={styles.noDataText}>
+            {noteSearchQuery.trim() ? `No results found for "${noteSearchQuery}"` : 'No notes found. Tap the plus button to add one!'}
+          </Text>
+        ) : (
+          <View style={noteStyles.notesGrid}>
+            {searchedNotes.map((note, index) => (
+              <View key={note.id} style={noteStyles.noteWrapper}>
+                <NoteItem
+                  note={{
+                    id: note.id,
+                    title: note.title || 'Untitled Note',
+                    text: note.body || note.convertedTranscript || note.detail || 'No content available',
+                    color: getNoteColor(index),
+                    audioUrl: note.audio,
+                  }}
+                  // --- MODIFIED: Pass the handleViewNote function ---
+                  onView={handleViewNote} 
+                />
+                
+                {/* Keep the Edit button for easy access */}
+                <TouchableOpacity
+                  style={noteStyles.editButton}
+                  onPress={() => navigation.navigate('ViewEditNote', { noteId: note.id })}
+                >
+                  <MaterialCommunityIcons name="pencil-outline" size={20} color={COLORS.White} />
+                  <Text style={noteStyles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
-        </TouchableOpacity>
-        <Text style={noteStyles.voiceTipText}>Tap to start voice note</Text>
-      </View>
+        )}
+      </ScrollView>
+
+      <TouchableOpacity 
+        style={[taskStyles.fabBase, { bottom: fabBottomPosition }]} 
+        onPress={() => navigation.navigate('AddNote')} 
+      >
+        <MaterialCommunityIcons name="plus" size={30} color={COLORS.White} />
+      </TouchableOpacity>
     </View>
   );
 
+  // --- Main Render (Unchanged) ---
   return (
-    <SafeAreaView style={styles.safeArea}>
-      
-      {/* 1. TOP HEADER with App Name and Settings Button */}
-      <View style={styles.topHeader}>
-        {/* App Name Text */}
+    <KeyboardAvoidingView 
+        style={styles.mainContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    > 
+      <View style={[styles.topHeader, { paddingTop: insets.top + 10 }]}> 
         <Text style={styles.appTitle}>BubbleSync</Text>
-        
-        {/* Settings Button */}
-        <TouchableOpacity 
-          style={styles.settingsButton}
-          onPress={() => {
-            navigation.navigate('Settings');
-          }}
-        >
+        <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
           <MaterialCommunityIcons name="cog-outline" size={30} color={COLORS.MainText} />
         </TouchableOpacity>
       </View>
-      
-      {/* 2. Main Tab Toggle */}
+
       <View style={styles.mainTabToggleContainer}>
-        <TouchableOpacity
-          style={[styles.mainTabButton, activeTab === 'tasks' && styles.mainTabActive]}
+        <TouchableOpacity 
+          style={[styles.mainTabButton, activeTab === 'tasks' && styles.mainTabActive]} 
           onPress={() => setActiveTab('tasks')}
         >
-          <Text style={[styles.mainTabText, activeTab === 'tasks' && styles.mainTabTextActive]}>
-            Tasks
-          </Text>
+          <Text style={[styles.mainTabText, activeTab === 'tasks' && styles.mainTabTextActive]}>Tasks</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.mainTabButton, activeTab === 'notes' && styles.mainTabActive]}
+        <TouchableOpacity 
+          style={[styles.mainTabButton, activeTab === 'notes' && styles.mainTabActive]} 
           onPress={() => setActiveTab('notes')}
         >
-          <Text style={[styles.mainTabText, activeTab === 'notes' && styles.mainTabTextActive]}>
-            Notes
-          </Text>
+          <Text style={[styles.mainTabText, activeTab === 'notes' && styles.mainTabTextActive]}>Notes</Text>
         </TouchableOpacity>
       </View>
-      
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
-        {activeTab === 'tasks' ? renderTaskView() : renderNotesView()}
-      </ScrollView>
-    </SafeAreaView>
+
+      {activeTab === 'tasks' ? renderTaskView() : renderNotesView()}
+    </KeyboardAvoidingView>
   );
 };
 
-// --- Task Specific Styles (Unchanged) ---
+// Wrapper to provide safe area context (Unchanged)
+const HomeScreen = (props) => (
+    <SafeAreaProvider>
+        <HomeScreenContent {...props} />
+    </SafeAreaProvider>
+);
+
+// ----------------------------------------------------------------------
+// 🎨 STYLESHEETS (Unchanged)
+// ----------------------------------------------------------------------
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: COLORS.Background,
+  },
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 5,
+    backgroundColor: COLORS.Background,
+  },
+  appTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: COLORS.MainText,
+  },
+  settingsButton: {
+    padding: 5,
+  },
+  contentView: {
+    paddingHorizontal: 20, 
+    paddingTop: 10,
+    flex: 1, 
+  },
+  scrollViewBase: {
+    flex: 1,
+  },
+  mainTabToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: COLORS.White,
+  },
+  mainTabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: COLORS.White,
+  },
+  mainTabActive: {
+    backgroundColor: COLORS.PrimaryAccent,
+  },
+  mainTabText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.MainText,
+  },
+  mainTabTextActive: {
+    color: COLORS.White,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: COLORS.SubtleText,
+  },
+  noDataText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: COLORS.SubtleText,
+  },
+});
+
 const taskStyles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     marginBottom: 20,
+    justifyContent: 'flex-start',
   },
   filterButton: {
     paddingVertical: 8,
     paddingHorizontal: 15,
-    borderRadius: 20,
-    backgroundColor: COLORS.White,
+    borderRadius: 8,
     marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
+    backgroundColor: '#f0f0f0',
   },
   filterText: {
-    color: COLORS.SubtleText,
+    fontSize: 14,
     fontWeight: '600',
+    color: COLORS.MainText,
   },
   filterTextActive: {
-    color: COLORS.White,
+    fontSize: 14,
     fontWeight: '600',
+    color: COLORS.White,
   },
-  taskCard: {
+  taskCard: { 
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: COLORS.White,
-    borderRadius: 15,
+    borderRadius: 12,
     padding: 15,
     marginBottom: 10,
+    borderLeftWidth: 6, 
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  taskCardDone: { 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#e8e8e8', 
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+    borderLeftWidth: 6, 
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    borderLeftWidth: 5,
-    borderLeftColor: COLORS.PrimaryAccent,
+    shadowRadius: 1,
+    elevation: 1,
   },
   taskContent: {
     flex: 1,
+    paddingRight: 10,
   },
   taskTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.MainText,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  taskTitleDone: { 
+    fontSize: 16,
+    fontWeight: 'normal',
+    color: COLORS.SubtleText,
+    marginBottom: 4,
+    textDecorationLine: 'line-through', 
   },
   taskDetail: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.SubtleText,
+  },
+  taskDetailDone: { 
+    fontSize: 12,
+    color: COLORS.SubtleText,
+    fontStyle: 'italic',
   },
   taskActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   actionButton: {
+    padding: 5,
     marginLeft: 10,
   },
-  centeredFab: {
+  fabBase: { 
+    position: 'absolute',
+    right: 20,
     width: 60,
     height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center', 
-    marginTop: 30, 
-    backgroundColor: COLORS.PrimaryAccent,
     borderRadius: 30,
-    elevation: 8,
+    backgroundColor: COLORS.PrimaryAccent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 10,
     shadowColor: COLORS.PrimaryAccent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    zIndex: 10,
   },
 });
 
-// --- Notes Specific Styles (Unchanged) ---
 const noteStyles = StyleSheet.create({
+  noteWrapper: {
+    width: '48%', 
+    marginBottom: 15,
+    position: 'relative', 
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.PrimaryAccent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-end',
+    marginTop: 5,
+  },
+  editButtonText: {
+    color: COLORS.White,
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: 'bold',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,10 +593,9 @@ const noteStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   noteCard: {
-    width: '48%', 
+    flex: 1, 
     borderRadius: 15,
     padding: 15,
-    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -320,102 +617,6 @@ const noteStyles = StyleSheet.create({
   noteIcons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  voiceButtonContainer: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 20,
-  },
-  voiceButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.SecondaryAccent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: COLORS.SecondaryAccent,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  voiceButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  voiceTipText: {
-    fontSize: 14,
-    color: COLORS.SubtleText,
-  }
-});
-
-
-// --- General Styles (Updated) ---
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.Background,
-  },
-  // TOP HEADER with App Name and Settings Icon
-  topHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 5,
-    backgroundColor: COLORS.Background,
-  },
-  appTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: COLORS.MainText,
-  },
-  settingsButton: {
-    padding: 5,
-  },
-  // ---
-  contentView: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  headerTitle: { // Kept for individual screen headers (Tasks/Notes section titles)
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.MainText,
-    marginBottom: 20,
-  },
-  // Main Toggle Tabs
-  mainTabToggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: COLORS.White,
-  },
-  mainTabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: COLORS.White,
-  },
-  mainTabActive: {
-    backgroundColor: COLORS.PrimaryAccent,
-  },
-  mainTabText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.MainText,
-  },
-  mainTabTextActive: {
-    color: COLORS.White,
   },
 });
 

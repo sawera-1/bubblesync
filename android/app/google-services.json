@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "412450765044",
+    "project_id": "bubblesync-fe0e7",
+    "storage_bucket": "bubblesync-fe0e7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412450765044:android:9467b12f3b2c92577986a1",
+        "android_client_info": {
+          "package_name": "com.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9Zd4EK8HumMD9LGGMQTRcyizZsNp2VZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -14,6 +14,10 @@ import VoiceNoteScreen from './src/Home Screens/AddVoiceNotesPg';
 import SettingsScreen from './src/Home Screens/SettingsPg';
 import PrivacyPolicyScreen from './src/Home Screens/PrivacyPolicyPg';
 import TermsOfServiceScreen from './src/Home Screens/TermOfServicePg';
+import EditTaskScreen from './src/Home Screens/EditTaskPg';
+import ViewTaskScreen from './src/Home Screens/ViewTaskPg';
+import ViewEditNoteScreen from './src/Home Screens/EditNotesPg';
+import ViewNoteScreen from './src/Home Screens/ViewNotesPg';
 
 
 
@@ -62,9 +66,29 @@ export default function App() {
             component={AddTaskScreen}
             options={{ headerShown: false }}
           />
+           <Stack.Screen
+            name="EditTask"
+            component={EditTaskScreen}
+            options={{ headerShown: false }}
+          />
+            <Stack.Screen
+            name="ViewTask"
+            component={ViewTaskScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
-            name="AddVoiceNotes"
+            name="AddNote"
             component={VoiceNoteScreen}
+            options={{ headerShown: false }}
+          />
+           <Stack.Screen
+            name="ViewEditNote"
+            component={ViewEditNoteScreen}
+            options={{ headerShown: false }}
+          />
+            <Stack.Screen
+            name="ViewNote"
+            component={ViewNoteScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen
