@@ -8,9 +8,13 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
+  Platform,
+  StatusBar,
+  Alert,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 
 const COLORS = {
   PrimaryAccent: '#48C2B3',
@@ -19,7 +23,6 @@ const COLORS = {
   MainText: '#1E252D',
   SubtleText: '#999999',
   White: '#FFFFFF',
-  InputBg: '#FFFFFF',
 };
 
 /* -------------------------------------------------------
@@ -31,27 +34,32 @@ const useNotes = () => {
   const [uploading, setUploading] = useState(false);
   const isMounted = useRef(true);
 
-  useEffect(() => {
-    return () => { isMounted.current = false; };
-  }, []);
+  useEffect(() => () => { isMounted.current = false; }, []);
 
   const handleSaveNote = async () => {
     if (!noteTitle.trim() && !noteBody.trim()) {
-      alert('Please add some text to save the note.');
+      Alert.alert('Validation', 'Please add some text to save the note.');
+      return;
+    }
+
+    const currentUser = auth().currentUser;
+
+    if (!currentUser) {
+      Alert.alert('Authentication Error', 'User not logged in.');
       return;
     }
 
     setUploading(true);
 
     try {
-      const noteData = {
+      await firestore().collection('notes').add({
         title: noteTitle.trim(),
         body: noteBody.trim(),
+        createdBy: currentUser.uid,                 // ✅ USER ID
         timestamp: firestore.FieldValue.serverTimestamp(),
-      };
+      });
 
-      await firestore().collection('notes').add(noteData);
-      alert('Note saved successfully!');
+      Alert.alert('Success', 'Note saved successfully!');
 
       if (isMounted.current) {
         setNoteTitle('');
@@ -59,7 +67,7 @@ const useNotes = () => {
       }
     } catch (error) {
       console.error('Save Note Error:', error);
-      alert('Failed to save note. See console for details.');
+      Alert.alert('Error', 'Failed to save note.');
     } finally {
       if (isMounted.current) setUploading(false);
     }
@@ -90,16 +98,24 @@ const NotesScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      {Platform.OS === 'android' && <View style={styles.androidStatusPadding} />}
 
-        {/* Header with Back Button */}
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={28} color={COLORS.PrimaryAccent} />
           </TouchableOpacity>
+
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>📝 Notes</Text>
+            <Text style={styles.headerTitle}>Add Notes</Text>
           </View>
+
+          <View style={{ width: 35 }} />
         </View>
 
         {/* Note Title */}
@@ -130,17 +146,25 @@ const NotesScreen = ({ navigation }) => {
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveNote} disabled={uploading}>
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handleSaveNote}
+          disabled={uploading}
+        >
           {uploading ? (
             <ActivityIndicator size="small" color={COLORS.White} />
           ) : (
-            <>
-              <MaterialCommunityIcons name="content-save-outline" size={24} color={COLORS.White} style={{ marginRight: 8 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialCommunityIcons
+                name="content-save-outline"
+                size={24}
+                color={COLORS.White}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.saveButtonText}>Save Note</Text>
-            </>
+            </View>
           )}
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,19 +175,12 @@ const NotesScreen = ({ navigation }) => {
 --------------------------------------------------------*/
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.Background },
+  androidStatusPadding: { height: StatusBar.currentHeight || 0 },
   container: { padding: 20, paddingBottom: 50 },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-  backButton: { marginRight: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, justifyContent: 'space-between' },
+  backButton: { padding: 5 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 28, fontWeight: '900', color: COLORS.MainText },
-
-  // Card Input
   card: {
     backgroundColor: COLORS.White,
     borderRadius: 16,
@@ -180,12 +197,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'android' ? 12 : 15,
     fontSize: 16,
     color: COLORS.MainText,
   },
-
-  // Save Button
   saveButton: {
     marginTop: 10,
     borderRadius: 12,
@@ -194,10 +209,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.PrimaryAccent,
-    shadowColor: COLORS.PrimaryAccent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
     elevation: 4,
   },
   saveButtonText: { color: COLORS.White, fontSize: 18, fontWeight: '900' },

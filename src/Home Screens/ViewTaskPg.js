@@ -7,6 +7,8 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import firestore from '@react-native-firebase/firestore';
@@ -19,7 +21,7 @@ const COLORS = {
   MainText: '#1E252D',
   SubtleText: '#999999',
   White: '#FFFFFF',
-  NotePhysics: '#81c784', // Done status color
+  NotePhysics: '#81c784',
 };
 
 const PRIORITY_OPTIONS = {
@@ -27,6 +29,9 @@ const PRIORITY_OPTIONS = {
   medium: { label: 'Medium Priority', color: COLORS.MediumPriority, icon: 'alert-circle' },
   low: { label: 'Low Priority', color: COLORS.PrimaryAccent, icon: 'leaf' },
 };
+
+// --- Android status bar padding ---
+const androidStatusPadding = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
 
 // --- Helper to format date safely ---
 const formatDate = (createdAt) => {
@@ -46,7 +51,6 @@ const ViewTaskScreen = ({ navigation, route }) => {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch & listen to task
   useEffect(() => {
     const unsubscribe = firestore()
       .collection('task')
@@ -104,7 +108,7 @@ const ViewTaskScreen = ({ navigation, route }) => {
   const getToggleButtonColor = () => (isDone ? COLORS.SecondaryAccent : COLORS.NotePhysics);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: androidStatusPadding }]}>
       <ScrollView contentContainerStyle={styles.container}>
 
         {/* Header */}

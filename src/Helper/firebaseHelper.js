@@ -125,20 +125,32 @@ export const handleSignUp = async (email, password, extraData = {}) => {
 };
 
 // ✅ Login (UPDATED for native SDK)
+// src/Authentication Screens/Helper/firebaseHelper.js
+
 export const login = async (email, password) => {
-    try {
-        const userCredential = await auth().signInWithEmailAndPassword(email, password);
-        return userCredential.user;
-    } catch (error) {
-        console.error("Error logging in:", error.message);
-        throw error;
+  try {
+    const userCredential = await auth().signInWithEmailAndPassword(email, password);
+
+    // Reload the user to get the latest emailVerified status
+    await userCredential.user.reload();
+
+    if (!userCredential.user.emailVerified) {
+      await auth().signOut(); // prevent access
+      throw new Error('Email not verified. Please verify your email first using the link in your Gmail.');
     }
+
+    return userCredential; // return userCredential if verified
+  } catch (error) {
+    console.error("Error logging in:", error.message);
+    throw error;
+  }
 };
+
 
 // ✅ Forgot Password (UPDATED for native SDK)
 export const forgotPassword = async (email) => {
     try {
-        await auth().sendPasswordResetEmail(email);
+        await auth().sendPasswordResetEmail(email); // Native SDK call
         console.log("Password reset email sent!");
     } catch (error) {
         console.error("Error sending reset email:", error.message);

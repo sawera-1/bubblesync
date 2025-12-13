@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import firestore from '@react-native-firebase/firestore';
@@ -95,14 +97,19 @@ const ViewEditNoteScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+      {/* Android Status Bar Padding */}
+      <View style={styles.androidStatusPadding} />
 
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={28} color={COLORS.PrimaryAccent} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Note Details</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Note Details</Text>
+          </View>
+          <View style={{ width: 35 }} />
         </View>
 
         {/* Title */}
@@ -146,20 +153,28 @@ const ViewEditNoteScreen = ({ navigation, route }) => {
         <View style={styles.actionButtonContainer}>
           {editing ? (
             <>
-              <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.PrimaryAccent }]} onPress={handleSave}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: COLORS.PrimaryAccent }]}
+                onPress={handleSave}
+              >
                 <Text style={styles.actionButtonText}>Save</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.SecondaryAccent }]} onPress={() => setEditing(false)}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: COLORS.SecondaryAccent }]}
+                onPress={() => setEditing(false)}
+              >
                 <Text style={styles.actionButtonText}>Cancel</Text>
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity style={[styles.actionButton, { backgroundColor: COLORS.PrimaryAccent }]} onPress={() => setEditing(true)}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: COLORS.PrimaryAccent }]}
+              onPress={() => setEditing(true)}
+            >
               <Text style={styles.actionButtonText}>Edit Note</Text>
             </TouchableOpacity>
           )}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -167,11 +182,18 @@ const ViewEditNoteScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.Background },
+
+  // Android Status Bar padding
+  androidStatusPadding: {
+    height: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+
   container: { padding: 20, paddingBottom: 50 },
 
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 25 },
-  backButton: { marginRight: 10 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.MainText },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, justifyContent: 'space-between' },
+  backButton: { padding: 5 },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 28, fontWeight: '900', color: COLORS.MainText },
 
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.Background },
   loadingText: { marginTop: 10, fontSize: 16, color: COLORS.SubtleText },

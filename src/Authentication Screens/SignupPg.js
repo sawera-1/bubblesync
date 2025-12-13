@@ -1,25 +1,13 @@
-// SignupScreen.js (WITH DEBUG LOGIC)
+// SignupScreen.js
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    SafeAreaView,
-    ScrollView,
-    Image,
-    Platform,
-    KeyboardAvoidingView,
-    Alert, // <-- Used for debugging
-    ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  SafeAreaView, ScrollView, Image, Platform, KeyboardAvoidingView,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-
-// Import the updated helper function (Ensure the path '../Helper/firebaseHelper' is correct)
-import { handleSignUp } from '../Helper/firebaseHelper';
-
-// 🎨 Color Palette
+import { handleSignUp } from '../Helper/firebaseHelper'; 
+// 🎨 Color Palette (From your provided styles)
 const COLORS = {
     PrimaryAccent: '#48C2B3',
     SecondaryAccent: '#F56F64',
@@ -29,210 +17,124 @@ const COLORS = {
     White: '#FFFFFF',
 };
 
-// Assuming the path is correct
+// Assuming this path is correct
 const BUBBLE_LOGO_URI = require('../../images/logo.png');
 
 const SignupScreen = ({ navigation }) => {
-    const [email, setEmail] = useState('');
-    const [name, setName] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
- const handleSignup = async () => {
-    // Basic validation
+  const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
-        Alert.alert('Validation Error', 'All fields are required.');
-        return;
+      return Alert.alert('Validation Error', 'All fields are required.');
     }
-
-    // Name validation
-    if (name.trim().length < 3) {
-        Alert.alert('Invalid Name', 'Your name must be at least 3 characters.');
-        return;
-    }
-
-    // Email validation (regex)
+    if (name.trim().length < 3) return Alert.alert('Invalid Name', 'Name must be at least 3 characters.');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-        Alert.alert('Invalid Email', 'Please enter a valid email address.');
-        return;
+    if (!emailRegex.test(email.trim())) return Alert.alert('Invalid Email', 'Enter a valid email address.');
+    if (password.length < 6 || !/^(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
+      return Alert.alert('Weak Password', 'Password must be at least 6 characters and contain a letter and a number.');
     }
 
-    // Password strength validation
-    if (password.length < 6) {
-        Alert.alert('Weak Password', 'Password must be at least 6 characters long.');
-        return;
-    }
-
-    const passRegex = /^(?=.*[A-Za-z])(?=.*\d)/;
-    if (!passRegex.test(password)) {
-        Alert.alert(
-            'Weak Password',
-            'Password must contain at least one letter and one number.'
-        );
-        return;
-    }
-
-    // If validation passed
     setLoading(true);
-
     try {
-        await handleSignUp(email, password, { name });
-
-        Alert.alert(
-            'Verify Email',
-            `A confirmation link has been sent to ${email}. Please verify your email to continue.`,
-            [{ text: 'OK' }]
-        );
-
-        navigation.replace('Login');
+      await handleSignUp(email.trim(), password, { name: name.trim() });
+      Alert.alert(
+        'Verify Email',
+        `A verification link has been sent to ${email}. Please verify your email to log in.`,
+        [{ text: 'OK', onPress: () => navigation.replace('Login') }]
+      );
     } catch (error) {
-        let errorMessage = 'Signup failed. Please try again.';
-
-        if (error.code === 'auth/email-already-in-use') {
-            errorMessage = 'This email is already registered.';
-        } else if (error.code === 'auth/weak-password') {
-            errorMessage = 'Password is too weak.';
-        } else if (error.message) {
-            errorMessage = error.message.replace('Firebase: Error (auth/', '').replace(').', '').replace(/-/g, ' ');
-        }
-
-        Alert.alert('Error', errorMessage);
+      let msg = error.code === 'auth/email-already-in-use'
+        ? 'This email is already registered.'
+        : error.message;
+      Alert.alert('Signup Failed', msg);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <View style={styles.headerContainer}>
+            <Image source={BUBBLE_LOGO_URI} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.headerTitle}>Join the Bubble!</Text>
+            <Text style={styles.headerSubtitle}>Organize Life, One Task At a Time</Text>
+          </View>
 
-    return (
-        <SafeAreaView style={styles.safeArea}>
-            {/* ... (rest of your component rendering) ... */}
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.container}
-                    keyboardShouldPersistTaps="handled"
-                    bounces={false}
-                >
-                    {/* Header */}
-                    <View style={styles.headerContainer}>
-                        <View style={styles.logoPlaceholder}>
-                            <Image source={BUBBLE_LOGO_URI} style={styles.logoImage} resizeMode="contain" />
-                        </View>
-                        <Text style={styles.headerTitle}>Join the Bubble!</Text>
-                        <Text style={styles.headerSubtitle}>Organize Life, One Task At a Time</Text>
-                    </View>
+          {/* Inputs */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Name</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input} placeholder="Enter your name"
+                value={name} onChangeText={setName} editable={!loading}
+                placeholderTextColor={COLORS.SubtleText}
+              />
+              <MaterialCommunityIcons name="account-outline" size={22} color={COLORS.SubtleText} />
+            </View>
 
-                    {/* Inputs */}
-                    <View style={styles.inputSection}>
-                        {/* Name */}
-                        <Text style={styles.inputLabel}>Name</Text>
-                        <View style={styles.inputWrapper}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your name"
-                                placeholderTextColor={COLORS.SubtleText}
-                                value={name}
-                                onChangeText={setName}
-                                editable={!loading}
-                            />
-                            <MaterialCommunityIcons name="account-outline" size={22} color={COLORS.SubtleText} />
-                        </View>
+            <Text style={styles.inputLabel}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input} placeholder="Enter your email"
+                value={email} onChangeText={setEmail} editable={!loading}
+                placeholderTextColor={COLORS.SubtleText} keyboardType="email-address" autoCapitalize="none"
+              />
+              <MaterialCommunityIcons name="email-outline" size={22} color={COLORS.SubtleText} />
+            </View>
 
-                        {/* Email */}
-                        <Text style={styles.inputLabel}>Email</Text>
-                        <View style={styles.inputWrapper}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your email address"
-                                placeholderTextColor={COLORS.SubtleText}
-                                keyboardType="email-address"
-                                value={email}
-                                onChangeText={setEmail}
-                                autoCapitalize="none"
-                                editable={!loading}
-                            />
-                            <MaterialCommunityIcons name="email-outline" size={22} color={COLORS.SubtleText} />
-                        </View>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input} placeholder="Create a password"
+                value={password} onChangeText={setPassword} editable={!loading}
+                secureTextEntry={!showPassword} placeholderTextColor={COLORS.SubtleText}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={COLORS.SubtleText} />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-                        {/* Password */}
-                        <Text style={styles.inputLabel}>Password</Text>
-                        <View style={styles.inputWrapper}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Create a strong password"
-                                placeholderTextColor={COLORS.SubtleText}
-                                secureTextEntry={!showPassword}
-                                value={password}
-                                onChangeText={setPassword}
-                                editable={!loading}
-                            />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={loading}>
-                                <MaterialCommunityIcons
-                                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                                    size={22}
-                                    color={COLORS.SubtleText}
-                                />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSignup} disabled={loading}>
+            {loading ? <ActivityIndicator color={COLORS.White} /> : <Text style={styles.primaryButtonText}>Create Account</Text>}
+          </TouchableOpacity>
 
-                    {/* Create Account Button */}
-                    <TouchableOpacity
-                        style={styles.primaryButton}
-                        onPress={handleSignup}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color={COLORS.White} />
-                        ) : (
-                            <Text style={styles.primaryButtonText}>Create Account</Text>
-                        )}
-                    </TouchableOpacity>
-
-                    {/* Privacy & Login Link (same as before) */}
-                    <Text style={styles.privacyText}>
-                        By creating an account, you agree to our{' '}
-                        <Text style={styles.linkText}>Privacy Policy</Text> and{' '}
-                        <Text style={styles.linkText}>Terms of Service</Text>.
-                    </Text>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Login')}
-                        style={styles.loginLinkContainer}
-                    >
-                        <Text style={styles.loginText}>
-                            Already have an account? <Text style={styles.linkText}>Log In</Text>
-                        </Text>
-                    </TouchableOpacity>
-
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
-    );
+          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.loginLinkContainer}>
+            <Text style={styles.loginText}>Already have an account? <Text style={styles.linkText}>Log In</Text></Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: COLORS.Background },
-    container: { padding: 30, paddingBottom: 50, flexGrow: 1 },
-    headerContainer: { alignItems: 'center', marginBottom: 40 },
-    logoPlaceholder: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-    logoImage: { width: 100, height: 100 },
-    headerTitle: { fontSize: 28, fontWeight: 'bold', color: COLORS.MainText },
-    headerSubtitle: { fontSize: 16, color: COLORS.SubtleText, marginTop: 5 },
-    inputSection: { marginBottom: 30 },
-    inputLabel: { fontSize: 14, fontWeight: 'bold', color: COLORS.MainText, marginBottom: 6, marginTop: 15 },
-    inputWrapper: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.SubtleText, paddingBottom: 8 },
-    input: { flex: 1, fontSize: 18, color: COLORS.MainText, paddingRight: 10, paddingVertical: Platform.OS === 'android' ? 10 : 6 },
-    primaryButton: { backgroundColor: COLORS.PrimaryAccent, borderRadius: 10, paddingVertical: 15, alignItems: 'center', marginBottom: 20, elevation: 8 },
-    primaryButtonText: { color: COLORS.White, fontSize: 18, fontWeight: 'bold' },
-    privacyText: { fontSize: 12, color: COLORS.SubtleText, textAlign: 'center', marginTop: 20, lineHeight: 18 },
-    loginLinkContainer: { marginTop: 20, alignItems: 'center' },
-    loginText: { fontSize: 14, color: COLORS.SubtleText },
-    linkText: { color: COLORS.PrimaryAccent, fontWeight: 'bold' },
+  safeArea: { flex: 1, backgroundColor: COLORS.Background },
+  container: { padding: 30, paddingBottom: 50, flexGrow: 1 },
+  headerContainer: { alignItems: 'center', marginBottom: 40 },
+  logoImage: { width: 100, height: 100 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: COLORS.MainText },
+  headerSubtitle: { fontSize: 16, color: COLORS.SubtleText, marginTop: 5 },
+  inputSection: { marginBottom: 30 },
+  inputLabel: { fontSize: 14, fontWeight: 'bold', color: COLORS.MainText, marginBottom: 6, marginTop: 15 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.SubtleText, paddingBottom: 8 },
+  input: { flex: 1, fontSize: 18, color: COLORS.MainText, paddingRight: 10, paddingVertical: Platform.OS === 'android' ? 10 : 6 },
+  primaryButton: { backgroundColor: COLORS.PrimaryAccent, borderRadius: 10, paddingVertical: 15, alignItems: 'center', marginBottom: 20 },
+  primaryButtonText: { color: COLORS.White, fontSize: 18, fontWeight: 'bold' },
+  loginLinkContainer: { marginTop: 20, alignItems: 'center' },
+  loginText: { fontSize: 14, color: COLORS.SubtleText },
+  linkText: { color: COLORS.PrimaryAccent, fontWeight: 'bold' },
 });
 
 export default SignupScreen;

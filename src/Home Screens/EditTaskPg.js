@@ -9,19 +9,15 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import firestore from '@react-native-firebase/firestore'; 
-// Assuming you have an updateData function in your firebaseHelper
-// import { updateData } from '../Helper/firebaseHelper'; 
+import firestore from '@react-native-firebase/firestore';
 
-// --- DUMMY FUNCTION for updateData ---
-// Replace this with your actual helper function if you don't use the direct firestore.doc().update() method
+// Dummy updateData function
 const updateData = async (collectionName, docId, data) => {
-    return firestore().collection(collectionName).doc(docId).update(data);
+  return firestore().collection(collectionName).doc(docId).update(data);
 };
-// ------------------------------------
-
 
 const COLORS = {
   PrimaryAccent: '#48C2B3',
@@ -49,19 +45,20 @@ const EditTaskScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // --- EFFECT to FETCH existing task data ---
+  // Fetch existing task data
   useEffect(() => {
     const fetchTask = async () => {
       try {
-        const taskRef = firestore().collection('task').doc(taskId);
-        const doc = await taskRef.get();
-
+        const doc = await firestore().collection('task').doc(taskId).get();
         if (doc.exists) {
           const taskData = doc.data();
           setTitle(taskData.title || '');
           setDetail(taskData.description || '');
-          // Ensure priority is capitalized to match option labels
-          setPriority(taskData.priority ? taskData.priority.charAt(0).toUpperCase() + taskData.priority.slice(1) : PRIORITY_OPTIONS[2].value);
+          setPriority(
+            taskData.priority
+              ? taskData.priority.charAt(0).toUpperCase() + taskData.priority.slice(1)
+              : PRIORITY_OPTIONS[2].value
+          );
         } else {
           alert('Task not found!');
           navigation.goBack();
@@ -74,7 +71,6 @@ const EditTaskScreen = ({ navigation, route }) => {
         setInitialLoading(false);
       }
     };
-
     fetchTask();
   }, [taskId, navigation]);
 
@@ -84,18 +80,14 @@ const EditTaskScreen = ({ navigation, route }) => {
       return;
     }
     setLoading(true);
-
     const updatedTask = {
       title: title.trim(),
       description: detail.trim(),
-      // Priority is stored lowercase in Firestore
-      priority: priority.toLowerCase(), 
+      priority: priority.toLowerCase(),
       updatedAt: new Date().toISOString(),
     };
-
     try {
-      // Use the taskId and updatedTask object for the update operation
-      await updateData('task', taskId, updatedTask); 
+      await updateData('task', taskId, updatedTask);
       alert('Task updated successfully!');
       navigation.goBack();
     } catch (error) {
@@ -108,18 +100,20 @@ const EditTaskScreen = ({ navigation, route }) => {
 
   if (initialLoading) {
     return (
-        <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.PrimaryAccent} />
-            <Text style={styles.loadingText}>Loading task for editing...</Text>
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.PrimaryAccent} />
+        <Text style={styles.loadingText}>Loading task for editing...</Text>
+      </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      {/* Android Status Bar Padding */}
+      <View style={styles.androidStatusPadding} />
 
-        {/* Clean Header (Updated Title) */}
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={28} color={COLORS.PrimaryAccent} />
@@ -144,7 +138,7 @@ const EditTaskScreen = ({ navigation, route }) => {
         {/* Priority Selector */}
         <Text style={styles.label}>Priority Level</Text>
         <View style={styles.priorityContainer}>
-          {PRIORITY_OPTIONS.map(option => (
+          {PRIORITY_OPTIONS.map((option) => (
             <TouchableOpacity
               key={option.value}
               style={[
@@ -159,10 +153,12 @@ const EditTaskScreen = ({ navigation, route }) => {
                 size={20}
                 color={priority === option.value ? COLORS.White : option.color}
               />
-              <Text style={[
-                styles.priorityText,
-                { color: priority === option.value ? COLORS.White : option.color },
-              ]}>
+              <Text
+                style={[
+                  styles.priorityText,
+                  { color: priority === option.value ? COLORS.White : option.color },
+                ]}
+              >
                 {option.label}
               </Text>
             </TouchableOpacity>
@@ -182,18 +178,26 @@ const EditTaskScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* Update Button (Updated Text) */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleUpdateTask} disabled={loading}>
+        {/* Update Button */}
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handleUpdateTask}
+          disabled={loading}
+        >
           {loading ? (
             <ActivityIndicator size="small" color={COLORS.White} />
           ) : (
             <>
-              <MaterialCommunityIcons name="content-save-outline" size={24} color={COLORS.White} style={{ marginRight: 8 }} />
+              <MaterialCommunityIcons
+                name="content-save-outline"
+                size={24}
+                color={COLORS.White}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.saveButtonText}>Update Task</Text>
             </>
           )}
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -201,9 +205,14 @@ const EditTaskScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.Background },
+
+  // Android Status Bar padding
+  androidStatusPadding: {
+    height: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+
   container: { padding: 20, paddingBottom: 50 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -212,12 +221,11 @@ const styles = StyleSheet.create({
   backButton: { marginRight: 10 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: {
-    fontSize: 28, 
+    fontSize: 28,
     fontWeight: '900',
     color: COLORS.MainText,
   },
-  
-  // Initial Loading state
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -230,7 +238,6 @@ const styles = StyleSheet.create({
     color: COLORS.SubtleText,
   },
 
-  // Card Input
   card: {
     backgroundColor: COLORS.White,
     borderRadius: 16,
@@ -252,7 +259,6 @@ const styles = StyleSheet.create({
     color: COLORS.MainText,
   },
 
-  // Priority
   priorityContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   priorityButton: {
     flex: 1,
@@ -267,7 +273,6 @@ const styles = StyleSheet.create({
   },
   priorityText: { marginLeft: 6, fontSize: 14, fontWeight: '700' },
 
-  // Save Button (Used for Update)
   saveButton: {
     marginTop: 20,
     borderRadius: 12,
