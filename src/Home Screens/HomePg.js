@@ -8,7 +8,7 @@ import {
     ScrollView,
     Platform,
     KeyboardAvoidingView,
-    ActivityIndicator, // Added for loading states
+    ActivityIndicator, 
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import firestore from '@react-native-firebase/firestore';
@@ -20,8 +20,6 @@ import { useAuth } from '../authcontext/AuthContextPg';
 
 // ----------------------------------------------------------------------
 // 🚨 CONFIGURATION 🚨
-// CHANGE THIS CONSTANT to match the actual field name in your Firestore documents 
-// that stores the authenticated user's ID (e.g., 'createdBy', 'ownerId', 'uid', 'userId').
 const USER_ID_FIELD = 'createdBy';
 // ----------------------------------------------------------------------
 
@@ -86,7 +84,8 @@ const TaskItem = ({ task, onEdit, onComplete, onView }) => {
                         color={isDone ? COLORS.SubtleText : iconColor} 
                     />
                 </Text>
-                <Text style={detailStyle}>{task.priority || 'N/A'} | Due: 18:56</Text>
+                {/* Due Date/Time removed */}
+                <Text style={detailStyle}>{task.priority || 'N/A'}</Text>
             </TouchableOpacity>
             
             <View style={taskStyles.taskActions}>
@@ -123,21 +122,19 @@ const NoteItem = ({ note, onView }) => (
 
 
 // ----------------------------------------------------------------------
-// 🏠 MAIN SCREEN COMPONENT CONTENT (FIXED)
+// 🏠 MAIN SCREEN COMPONENT CONTENT (UPDATED)
 // ----------------------------------------------------------------------
 const HomeScreenContent = ({ navigation }) => {
     const insets = useSafeAreaInsets();
     
-    // 1. GET CURRENT USER ID (FIXED: Use userToken from context)
-    const { userToken } = useAuth(); // Access userToken directly
-    const currentUserId = userToken; // userToken holds the UID (string or null)
+    // 1. GET CURRENT USER ID 
+    const { userToken } = useAuth(); 
+    const currentUserId = userToken; 
     
     // --- STATE DECLARATIONS & HANDLERS (Unchanged) ---
     const [activeTab, setActiveTab] = useState('tasks');
     const [tasks, setTasks] = useState([]);
     const [notes, setNotes] = useState([]);
-    // Note: We use the context's 'isLoading' for initial app check, but keep this local 'isLoading' 
-    // for managing the Firestore subscription status.
     const [isLoading, setIsLoading] = useState(true); 
     const [taskFilter, setTaskFilter] = useState('all'); 
     const [noteSearchQuery, setNoteSearchQuery] = useState('');
@@ -161,18 +158,17 @@ const HomeScreenContent = ({ navigation }) => {
     };
 
 
-    // 2. FIRESTORE LISTENERS (Runs whenever currentUserId changes: null -> UID)
+    // 2. FIRESTORE LISTENERS (Unchanged)
     useEffect(() => {
         if (!currentUserId) {
             console.warn("User ID not available. Cannot fetch user-specific data.");
-            // If we are logged out, clear data and stop loading indicator immediately
             setTasks([]);
             setNotes([]);
             setIsLoading(false);
             return () => {}; 
         }
 
-        setIsLoading(true); // Start loading when a valid user ID is detected
+        setIsLoading(true); 
 
         // --- Task Listener: Filtered by USER_ID_FIELD ---
         const unsubscribeTasks = firestore()
@@ -182,7 +178,7 @@ const HomeScreenContent = ({ navigation }) => {
             .onSnapshot(snapshot => {
                 const taskList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setTasks(taskList);
-                setIsLoading(false); // Stop loading after first successful fetch
+                setIsLoading(false); 
             }, error => {
                 console.error('Tasks snapshot error:', error);
                 setIsLoading(false); 
@@ -200,18 +196,17 @@ const HomeScreenContent = ({ navigation }) => {
                     color: getNoteColor(index) 
                 }));
                 setNotes(noteList);
-                setIsLoading(false); // Stop loading after first successful fetch
+                setIsLoading(false); 
             }, error => {
                 console.error('Notes snapshot error:', error);
                 setIsLoading(false);
             });
 
         return () => {
-            // Clean up listeners when the component unmounts or currentUserId changes
             unsubscribeTasks();
             unsubscribeNotes();
         };
-    }, [currentUserId]); // Dependency array is crucial
+    }, [currentUserId]); 
 
     // ... Filtered tasks and searched notes logic (Unchanged) ...
     const filteredTasks = useMemo(() => {
@@ -384,7 +379,12 @@ const HomeScreenContent = ({ navigation }) => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         > 
             <View style={[styles.topHeader, { paddingTop: insets.top + 10 }]}> 
-                <Text style={styles.appTitle}>BubbleSync</Text>
+                {/* 🎨 MODIFICATION: Split title into two colored Text components */}
+                <Text style={styles.appTitle}>
+                    <Text style={{ color: COLORS.PrimaryAccent }}>Bubble</Text>
+                    <Text style={{ color: COLORS.SecondaryAccent }}>Sync</Text>
+                </Text>
+                
                 <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
                     <MaterialCommunityIcons name="cog-outline" size={30} color={COLORS.MainText} />
                 </TouchableOpacity>
@@ -407,8 +407,6 @@ const HomeScreenContent = ({ navigation }) => {
 
             {/* Check if userToken is null before rendering content to prevent errors on rapid log out/in */}
             {!currentUserId ? (
-                // Fallback: If AppStack somehow renders when currentUserId is null (shouldn't happen 
-                // due to RootNavigator but acts as a final safeguard)
                 <LoadingView />
             ) : (
                 activeTab === 'tasks' ? renderTaskView() : renderNotesView()
@@ -425,7 +423,7 @@ const HomeScreen = (props) => (
 );
 
 // ----------------------------------------------------------------------
-// 🎨 STYLESHEETS (Unchanged)
+// 🎨 STYLESHEETS (Only the appTitle style needs a minor adjustment)
 // ----------------------------------------------------------------------
 
 const styles = StyleSheet.create({
@@ -442,9 +440,10 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.Background,
     },
     appTitle: {
+        // We keep the overall font styles here, but the color is overridden by nested Text components
         fontSize: 26,
         fontWeight: '900',
-        color: COLORS.MainText,
+        color: COLORS.MainText, // This default color is now less important
     },
     settingsButton: {
         padding: 5,

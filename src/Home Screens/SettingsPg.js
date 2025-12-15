@@ -202,26 +202,32 @@ const handleDeleteAccount = async () => {
           </TouchableOpacity>
         </View>
 
-        <View style={settingsStyles.divider} />
+       
 
-        {/* Notifications */}
-        <View style={settingsStyles.row}>
-          <View style={settingsStyles.rowLeft}>
-            <MaterialCommunityIcons name="bell-outline" size={24} color={COLORS.PrimaryAccent} />
-            <Text style={settingsStyles.rowTitle}>Notifications</Text>
-          </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={() => setNotificationsEnabled(v => !v)}
-          />
-        </View>
+       
 
         <View style={settingsStyles.divider} />
 
         {/* Support */}
         <Text style={settingsStyles.sectionHeader}>Support & Legal</Text>
-        <SettingRow icon="file-document-outline" title="Privacy Policy" onPress={() => navigation.navigate('PrivacyPolicy')} />
-        <SettingRow icon="book-open-outline" title="Terms of Service" onPress={() => navigation.navigate('ToS')} />
+        <SettingRow
+  icon="file-document-outline"
+  title="Privacy Policy"
+  onPress={() => navigation.navigate('WebViewScreen', {
+    title: 'Privacy Policy',
+    url: 'https://sites.google.com/view/bubblesync-privacypolicy/home'
+  })}
+/>
+
+<SettingRow
+  icon="book-open-outline"
+  title="Terms of Service"
+  onPress={() => navigation.navigate('WebViewScreen', {
+    title: 'Terms of Service',
+    url: 'https://sites.google.com/view/bubblesync-termsofservices/home'
+  })}
+/>
+
         <SettingRow icon="email-outline" title="Contact Us" onPress={() => navigation.navigate('ContactUs')} />
 
         <View style={settingsStyles.divider} />

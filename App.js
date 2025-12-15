@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from './src/authcontext/AuthContextPg';
 import LoginScreen from './src/Authentication Screens/LoginPg';
 import SignupScreen from './src/Authentication Screens/SignupPg';
 import ForgotPasswordScreen from './src/Authentication Screens/ForgotPasswordPg';
-import ResetPasswordScreen from './src/Authentication Screens/ResetPasswordPg';
 import HomeScreen from './src/Home Screens/HomePg';
 import AddTaskScreen from './src/Home Screens/AddTaskPg';
 import EditTaskScreen from './src/Home Screens/EditTaskPg';
@@ -21,6 +20,7 @@ import SettingsScreen from './src/Home Screens/SettingsPg';
 import EditProfileScreen from './src/Home Screens/EditProfilePg';
 import PrivacyPolicyScreen from './src/Home Screens/PrivacyPolicyPg';
 import TermsOfServiceScreen from './src/Home Screens/TermOfServicePg';
+import WebViewScreen from './src/ViewPg';
 
 // Import all your screens
 
@@ -38,6 +38,8 @@ const AuthStack = () => (
     <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="WebViewScreen" component={WebViewScreen} options={{ headerShown: false }}/>
+    
   </Stack.Navigator>
 );
 
@@ -52,9 +54,11 @@ const AppStack = () => (
     <Stack.Screen name="ViewEditNote" component={ViewEditNoteScreen} options={{ headerShown: false }} />
     <Stack.Screen name="ViewNote" component={ViewNoteScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
     <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: false }} />
     <Stack.Screen name="ToS" component={TermsOfServiceScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="WebViewScreen" component={WebViewScreen} options={{ headerShown: false }} />
   </Stack.Navigator>
 );
 

@@ -8,6 +8,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { login, auth } from '../Helper/firebaseHelper';
 import { useAuth } from '../authcontext/AuthContextPg';
 // 🎨 Color Palette (From your provided styles)
+
 const COLORS = {
     PrimaryAccent: '#48C2B3',
     SecondaryAccent: '#F56F64',
@@ -117,7 +118,7 @@ class LoginScreen extends Component {
               <Text style={styles.loginText}>Don't have an account? <Text style={styles.linkText}>Sign Up</Text></Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.signupLinkContainer}>
-              <Text style={styles.loginText}>Don't have an account? <Text style={styles.linkText}>forgot password</Text></Text>
+               <Text style={styles.linkText}>Forgot Password</Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
